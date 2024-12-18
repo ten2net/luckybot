@@ -1,0 +1,11 @@
+<svg width="200" height="100" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="50" fill="#003366"/>
+  <defs>
+    <linearGradient id="gearGradient" x1="100" y1="25" x2="100" y2="65">
+      <stop offset="0%" stop-color="#006699"/>
+      <stop offset="100%" stop-color="#003366"/>
+    </linearGradient>
+  </defs>
+  <path d="M100,25 L80,45 L90,55 L110,55 L120,45 L100,25" fill="url(#gearGradient)"/>
+  <text x="100" y="80" font-family="Arial" font-size="24" fill="#FFFFFF" text-anchor="middle">LuckyBot</text>
+</svg>
