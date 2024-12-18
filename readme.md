@@ -1,6 +1,6 @@
 # 揽宝 (LuckyBot) - 基于ROS 2的多机器人股票自动化交易系统
 
-[![GitHub Release](images/luckybot.svg)](https://github.com/ten2net/luckybot/releases)
+[![GitHub Release](images/luckybot.svg)](https://github.com/ten2net/luckybot/releases) 选择揽宝，让智能交易成为您的财富增长引擎。
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![ROS 2](https://img.shields.io/badge/ROS%202-jazzy-blue.svg)](https://index.ros.org/packages/jazzy/)
 
@@ -61,5 +61,5 @@ ros2 launch luckybot launch/start.launch.py
 
 ## 联系
 
-- **邮件**：[your-email@example.com](mailto:ten2net@163.com)
+- **邮件**：[ten2net@163.com](mailto:ten2net@163.com)
 - **社区**：加入我们的[社区论坛](https://www.e-u.cn)以获取支持和分享经验。
