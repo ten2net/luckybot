@@ -6,3 +6,5 @@ install/
 log/
 ROS2-Self-Driving-Car-AI-using-OpenCV/
 .vscode/PythonImportHelper-v2-Completion.json
+src/luckybot/config/.env
+src/luckybot/config/user_config.yaml
