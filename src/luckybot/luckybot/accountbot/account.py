@@ -4,8 +4,10 @@ from .strategy.sell_on_consecutive_declines import SellOnConsecutiveDeclines
 from .trader.sim.trader import Trader
 import rclpy
 import json
+import time
 from std_msgs.msg import String
 from ..base import LuckyBot
+from collections import deque
 
 
 class AccountBot(LuckyBot):
@@ -47,6 +49,8 @@ class AccountBot(LuckyBot):
         
         timer_period = 2  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
+        
+        self.index_history = deque(maxlen=1000)
       
     def check_parameters(self):
         current_enabled_strategies = self.get_parameter('enabled_strategies').get_parameter_value().value
@@ -74,13 +78,18 @@ class AccountBot(LuckyBot):
             "position" : self.trader.get_position(),
             "balance": self.trader.get_balance_info(),
         }
-        self.get_logger().info(json.dumps(account_data, ensure_ascii=False))
+        # self.get_logger().info(json.dumps(account_data, ensure_ascii=False))
         self.strategy_manager.execute_strategies(self.market_data, account_data, self.trader)
     def timer_callback(self):
         # self.get_logger().info(json.dumps(self.market_data, ensure_ascii=False,indent=4))
         if self.market_data.get("index") is None: return
-        if self.market_spot_df is None: return   
-        # self.get_logger().info(json.dumps(self.market_data, ensure_ascii=False))             
+        if self.market_spot_df is None: return  
+        if not self.index_history or self.market_data.get("index") != self.index_history[-1].get("index"):
+            self.index_history.append({
+                "timestamp" : int(time.time()),
+                "index": self.market_data.get("index")
+            })
+        self.get_logger().info(json.dumps(list(self.index_history), ensure_ascii=False))             
         if self.market_data.get('index') < 0.05:
             self.execute_strategies()
 def main(args=None):
