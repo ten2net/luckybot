@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
    
+from typing import Dict
+import json
 import rclpy
 from rclpy.node import Node
 import pandas as pd
@@ -13,7 +15,7 @@ class LuckyBot(Node):
     def __init__(self,name):
         super().__init__(name)
         
-        self._index = None
+        self._market_data = {}
         self._market_spot_df = None
         
         self.index_subscription = self.create_subscription(
@@ -28,7 +30,7 @@ class LuckyBot(Node):
             10)
         
     def index_callback(self, msg):
-        self._index = round(msg.data,3)
+        self._market_data.update({'index': round(msg.data,3)})
     def spot_callback(self, msg):
         data_list = []
         ignore_fields =['_check_fields', '_header']
@@ -45,9 +47,9 @@ class LuckyBot(Node):
         """Get market spot."""
         return self._market_spot_df        
     @property
-    def index(self) -> float:
+    def market_data(self) -> Dict:
         """Get market index."""
-        return self._index          
+        return self._market_data          
                           
 
 def main(args=None):

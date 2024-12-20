@@ -1,66 +1,12 @@
 #!/usr/bin/env python3
-from luckybot.toolkit.trader.sim.trader import Trader
+from .strategy.base import StrategyManager
+from .strategy.sell_on_consecutive_declines import SellOnConsecutiveDeclines
+from .trader.sim.trader import Trader
 import rclpy
 import json
 from std_msgs.msg import String
-from luckybot.base import LuckyBot
+from ..base import LuckyBot
 
-class AccountHelper:
-    def __init__(self,userid, sim_token):
-        self.userid = userid
-        self.sim_token = sim_token
-
-    def fetch_accounts(self) -> dict:
-        from urllib.parse import urlencode
-        import requests
-        import time        
-        def build_url( params: dict, base=None) -> str:
-            url = self.base_url if base is None else base
-            ts = int(time.time() * 1000) - 10
-            url += f"{ts}&"
-            url += f"userid={self.userid}&"
-            url += f"plat=2&ver=web20&"
-            url += urlencode(params) + "&"
-            url += f"r=9633477&_={ts}"
-            return url
-        order_type = "spo_zuhe_preview"  # spo_bal_info 账户信息
-        params: dict = {
-            "type": order_type,
-            "sylType": "10001"
-        }
-        url = build_url(
-            params, base="https://simqry2.eastmoney.com/qry_tzzh_v2?cb=jQuery35109976387848607984_1722654955385")
-        hd = {
-            "Referer": "https://i.eastmoney.com/",
-            "Cookie": self.sim_token
-        }
-        resp = requests.get(url, headers=hd)
-        if resp.status_code == 200:
-            result = resp.text
-            js_text = result[result.index("(") + 1: result.index(")")]
-            ret = json.loads(js_text)
-            accounts = ret.get("data")
-
-            return [{"accountNo": data['zjzh'],
-                     "accountName": data['zuheName'],
-                     "return_total": data['zsyl'],
-                    "return_today": data['syl_dr'],
-                     "return_5d": data['syl_5r'],
-                     "return_20d": data['syl_20r'],
-                     "return_6d": data['syl_60r'],
-                     "return_250d": data['syl_250r'],
-                     "win": data['dealWinCnt'],
-                     "fail": data['dealfailCnt'],
-                     "pos": data['holdPos']}
-                    for data in accounts
-                    ]
-        else:
-            result = resp.text
-            js_text = result[result.index("(") + 1: result.index(")")]
-            ret = json.loads(js_text)
-            msg = ret.get("message")
-            print(f'{msg} . {url}')
-            return []       
 
 class AccountBot(LuckyBot):
     def __init__(self,name):
@@ -81,35 +27,62 @@ class AccountBot(LuckyBot):
         self.account_name = self.get_parameter('name').get_parameter_value().string_value        
         self.strategt_mapping = self.get_parameter('strategt_mapping').get_parameter_value().string_value        
         self.em_appkey = self.get_parameter('em_appkey').get_parameter_value().string_value        
-        self.get_logger().info(self.username + "------" + self.account_name + ' : ' + self.strategt_mapping)
+        # self.get_logger().info(self.username + "------" + self.account_name + ' : ' + self.strategt_mapping)
         
-        accountHeler = AccountHelper(self.userid, self.sim_token)
-        account_return_info_list = accountHeler.fetch_accounts()
-        account_return_info = [item for item in account_return_info_list if item.get('accountName') == self.account_name]
-        self.__dict__.update(account_return_info[0])
-        # self.get_logger().info(json.dumps(account_return_info_list))
-        self.get_logger().info(account_return_info_list[0]["accountName"])
-        self.get_logger().info(self.accountNo)
+        self.strategy_manager = StrategyManager()
+        self.strategy_manager.register_strategy('consecutive_declines', SellOnConsecutiveDeclines(threshold=2))  
+        # TODO: adregisterd other strategies
+        # 用参数控制该账户要启用的是指管理策略。逗号分隔的策略名
+        self.declare_parameter('enabled_strategies', '')
+        # 创建一个定时器来定期检查参数值
+        # self.timer = self.create_timer(1.0, self.check_parameters) 
+        group = Trader(self.userid, '', self.sim_token).get_group(self.account_name)
+        # self.get_logger().info(json.dumps(group, ensure_ascii=False))
+        self.trader: Trader = Trader(self.userid, group.get("groupNo"), self.sim_token)
+        # balance_info = self.trader.get_balance_info()
+        # self.__dict__.update(balance_info)
+        # self.get_logger().info(json.dumps(balance_info, ensure_ascii=False))
+        # pos = self.trader.get_position()
+        # self.get_logger().info(json.dumps(pos, ensure_ascii=False,indent=4))
         
-        self.trader: Trader = Trader(self.userid, self.accountNo, self.sim_token)
-        balance_info = self.trader.get_balance_info()
-        self.__dict__.update(balance_info)
-        self.get_logger().info(json.dumps(balance_info))
-        pos = self.trader.get_position()
-        self.get_logger().info(json.dumps(pos))
-        groups = self.trader.get_groups()
-        self.get_logger().info(json.dumps(groups, ensure_ascii=False))
-        # 10: 这是发布者的质量服务（Quality of Service，QoS）设置。QoS设置定义了消息传递的可靠性和历史保持策略。在这里，10是QoS配置的整数表示，对应于rmw_qos_profile_sensor_data，这是一个适用于传感器数据的QoS配置，它提供了一定的可靠性保证和历史保持策略。
-        # self.publisher_ = self.create_publisher(String, 'luckybot/accountbot', 10)
-        # timer_period = 0.5  # seconds
-        # self.timer = self.create_timer(timer_period, self.timer_callback)
+        timer_period = 2  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+      
+    def check_parameters(self):
+        current_enabled_strategies = self.get_parameter('enabled_strategies').get_parameter_value().value
+        if current_enabled_strategies != self.previous_enabled_strategies:
+            self.previous_enabled_strategies = current_enabled_strategies
+            enabled_strategies = current_enabled_strategies.split(',')
+            for strategy in enabled_strategies:
+                self.strategy_manager.enable_strategy(strategy.strip())
+            for strategy in list(self.strategy_manager.enabled_strategies):
+                if strategy not in enabled_strategies:
+                    self.strategy_manager.disable_strategy(strategy)
+            self.get_logger().info(f'Enabled strategies updated: {enabled_strategies}')        
+    def parameter_callback(self, params):
+        for param in params:
+            if param.name == 'enabled_strategies':
+                enabled_strategies = param.value.split(',')
+                for strategy in enabled_strategies:
+                    self.strategy_manager.enable_strategy(strategy.strip())
+                for strategy in list(self.strategy_manager.enabled_strategies):
+                    if strategy not in enabled_strategies:
+                        self.strategy_manager.disable_strategy(strategy)
 
+    def execute_strategies(self):
+        account_data ={
+            "position" : self.trader.get_position(),
+            "balance": self.trader.get_balance_info(),
+        }
+        self.get_logger().info(json.dumps(account_data, ensure_ascii=False))
+        self.strategy_manager.execute_strategies(self.market_data, account_data, self.trader)
     def timer_callback(self):
-        msg = String()
-        msg.data = f'Hello ROS2! I am {self.get_name()}'
-        self.get_logger().info('Publishing: "%s"' % msg.data)
-        self.publisher_.publish(msg)
-
+        # self.get_logger().info(json.dumps(self.market_data, ensure_ascii=False,indent=4))
+        if self.market_data.get("index") is None: return
+        if self.market_spot_df is None: return   
+        # self.get_logger().info(json.dumps(self.market_data, ensure_ascii=False))             
+        if self.market_data.get('index') < 0.05:
+            self.execute_strategies()
 def main(args=None):
     try:
         rclpy.init(args=args)

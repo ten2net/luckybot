@@ -3,7 +3,6 @@ import random
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist, Pose
-from luckybot_interface.msg import AmazingQuote
 from std_msgs.msg import Float32
 from std_msgs.msg import Header
 
@@ -56,7 +55,8 @@ class MarketBot(Node):
         self.spot_timer = self.create_timer(self.spot_interval, self.spot_timer_callback)
     def index_timer_callback(self):
         msg = Float32()
-        msg.data = round(self.compute_market_sentiment_index() + random.uniform(0, 1), 3)
+        # msg.data = round(self.compute_market_sentiment_index() + random.uniform(0, 1), 3)
+        msg.data = round( random.uniform(-0.1, 0.1), 3)
         self.index_publisher.publish(msg)
     def spot_timer_callback(self):
         df = self.get_market_spot()

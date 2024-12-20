@@ -23,7 +23,6 @@ def generate_launch_description():
           print(em_appkey)
 
       # 创建用户节点和账户节点的列表
-      user_containers = []
       user_nodes = []
       account_nodes = []
 
@@ -65,13 +64,6 @@ def generate_launch_description():
               )
               account_nodes.append(account_node)
 
-          # 创建复合节点容器
-          # user_container = ComposableNodeContainer(
-          #     name='user_container_' + user['username'],
-          #     namespace='',
-          #     nodes=[user_node, *account_nodes]
-          # )
-          # user_containers.append(user_container)
       return [*user_nodes, *account_nodes]
     run_node_action_func = OpaqueFunction(function=run_node_action)
 
